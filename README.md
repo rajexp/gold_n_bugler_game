@@ -7,5 +7,5 @@ Python Tkinter GUI  game implementation
 * All comes in standard library packages no need to install others
 
 ### ScreenShot 
-![img](game1.jpg)
-![img](game2.jpg)
+![img](game1.JPG)
+![img](game2.JPG)
