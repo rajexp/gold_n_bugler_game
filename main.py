@@ -2,6 +2,8 @@
 from tkinter import *
 import tkinter.font, random, math
 from tkinter import ttk
+from urllib import request, parse
+import socket
 position=[]
 LARGE_FONT= ("Verdana", 12)
 NORM_FONT = ("Helvetica", 10)
@@ -14,8 +16,29 @@ def page(self):
     label.pack()
     button1.pack()
     button2.pack()
- 
- 
+
+
+FREEGEOPIP_URL = 'http://ip-api.com/json'
+
+
+def get_geolocation_for_ip(ip):
+    url = '{}/{}'.format(FREEGEOPIP_URL, ip)
+
+    response = request.urlopen(url)
+    response.raise_for_status()
+
+def update_leaderboard(a,b,c):
+    print(str(a)+str(type(a)))
+    print(str(b)+str(type(b)))
+    print(str(c)+str(type(c)))
+    try:
+        con   = get_geolocation_for_ip(socket.gethostbyname(socket.gethostname()))["country"]
+    except:
+        con="International"
+    dat  = parse.urlencode({'username':a,'score':b,'guesses':c,'country':con}).encode()
+    req  =  request.Request('http://leaderboard-flask-rajexp.c9users.io:8080/update',data=dat) # this will make the method "POST"
+    resp = request.urlopen(req)
+    print (resp.read())
 class MyWindow(Frame):
     def __init__(self, master):
         global position
@@ -26,8 +49,7 @@ class MyWindow(Frame):
        
         self.app = Frame(master, bg="yellow")
         self.app.grid_rowconfigure(0, weight=1)
-        self.app.grid_columnconfigure(1, weight=1)
-        self.app.grid_columnconfigure(0, weight=1)
+        self.app.grid_columnconfigure(3, weight=1)
         self.app.pack(fill="both", expand=True)
      
         # instructions and fonts
@@ -42,7 +64,7 @@ class MyWindow(Frame):
         # create island widget
         self.island = Text(self.app, bg="cyan", padx=40, pady=80, font=self.mono_font,width=20, height=10, wrap=NONE,bd=0)
         self.island.insert(1.0, "ready")
-        self.island.grid(row=0,column=3,rowspan=6, stick=N+E+S+W,)      
+        self.island.grid(row=0,column=3,rowspan=6, stick=N+E+S+W,)
         # Input for grid size and treasure and bandits]
         self.grid_size_label = Label(self.app,bg="yellow",text="Grid-Size")
         self.grid_size_label.grid(row=2,column=0,padx=2)
@@ -72,19 +94,19 @@ class MyWindow(Frame):
         self.start_a.grid(row=5, column=0,columnspan=2, pady=5)
         self.start_b = Button(self.app, text="Quit game", bg="red", command=quit)
         self.start_b.grid(row=6, column=0,columnspan=2, pady=5)
-       
+        self.player=StringVar()
         # score labels and fields
-        self.score_lbl = Label(self.app, text="Guesses: 0", bg="yellow")
-        self.score_lbl.grid(row=1, column=0,padx=5,columnspan=2,sticky=W+N)
+        self.player_label=Entry(self.app,textvariable=self.player,bg="yellow")
+        self.player_label.grid(row=1, column=0,padx=5,columnspan=2,sticky=W+N)
  
         # set keydown handler
-        root.bind("<Key>", self.key_pressed)
         # best score variable
         self.Found=False
         self.best_score = 0
         self.score=0
         self.grid_limit= 6
         self.avaliable_pos=position
+        self.matrix=[]
         # begin game
         #self.page()
         #print self.treasure_pos
@@ -92,18 +114,24 @@ class MyWindow(Frame):
     def start(self):
         self.start_a['text']='  Restart  ' if (self.start_a['text'])=='Start game' else 'Start game'
         self.start_a['command']=self.restart
-        # HIding Options Since game has started 
+        # HIding Options Since game has started
+        self.player_label.grid_forget()
         self.treasure_size_label.grid_forget()
         self.bandit_size_label.grid_forget()
         self.grid_size_label.grid_forget()
         self.treasure_size.grid_forget()
         self.bandit_size.grid_forget()
         self.grid_size.grid_forget()
-        # Appearing Score Label so that score can be seen 
+        # Appearing Score Label so that score can be seen
+        
+        self.score_lbl = Label(self.app, text="Guesses: 0", bg="yellow")
+        self.score_lbl.grid(row=1, column=0,padx=5,columnspan=2,sticky=W+N)
         self.treasure_score= Label(self.app,bg="yellow",text="Treasure Found : 0")
         self.treasure_score.grid(row=2,column=0,padx=2,columnspan=2,sticky=N+W)
         self.score_label= Label(self.app,bg="yellow",text="Score : 0")
         self.score_label.grid(row=3,column=0,padx=2,columnspan=2,sticky=N+W)
+        #
+        root.bind("<Key>", self.key_pressed)
         self.begin()
     def restart(self):
         # ON Restart Change the text to Start Game
@@ -144,12 +172,14 @@ class MyWindow(Frame):
         self.treasure_pos = list(random.sample(list(position),int(self.treasure_size_var.get())))
         for pos in self.treasure_pos:
             position.remove(pos)
-            #Generate Bandit Position
+        #Generate Bandit Position
         self.bandit_pos = list(random.sample(list(position),int(self.bandit_size_var.get())))
-        print (self.treasure_pos)
-        print (self.bandit_pos)
+        #Uncomment for debugging purpose
+        #print (self.treasure_pos)
+        #print (self.bandit_pos)
         self.blink = False
         self.guesses = 0
+        self.score =0
         self.treasure_found = 0
         self.end_tick = False
         self.tick()
@@ -196,6 +226,7 @@ class MyWindow(Frame):
             print (self.treasure_found)
             # IF treasure found equals the total treasures in grid then print that all treasure has been found 
             if self.treasure_found==int(self.treasure_size_var.get()):
+                update_leaderboard(self.player.get(),self.score,self.guesses)
                 self.treasure_score.config(text="All Treasure Found .")
                 self.score_lbl.config(text="Win in " + str(self.guesses)+" Guesses")
             self.tick()
@@ -237,6 +268,6 @@ class MyWindow(Frame):
         
  
 root = Tk()
-root.title("We made this Game :P")
+root.title("Gold n Buglers")
 MyWindow(root).pack()
 root.mainloop()
